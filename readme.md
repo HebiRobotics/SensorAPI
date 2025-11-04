@@ -34,9 +34,9 @@ File: 001_ForceSensor_Single.py
 This example reads data from one tactile sensor and prints the readings in the terminal.
 
 Run command:
-‘’‘
+```
 python 001_ForceSensor_Single.py
-’‘’
+```
 
 
 
