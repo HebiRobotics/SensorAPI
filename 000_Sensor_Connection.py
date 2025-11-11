@@ -5,20 +5,20 @@ conda create -n TactX
 conda activate TactX
 
 
-# 安装依赖
+# Install dependencies
 pip install pyserial numpy
 
-# 直接扫描，默认 921600 波特、20x8、2字节像素，单口探测 3 秒
+# Direct scan, default baud rate 921600, 20x8 matrix, 2 bytes per pixel, single port detection for 3 seconds
 python 000_Sensor_Connection.py
 
-# 或者自定义参数（比如探测更久）
+# Or customize parameters (e.g., probe longer)
 python 000_Sensor_Connection.py --probe 5.0
 
-# 如果你的设备不是 921600
+# If your device is not using 921600 baud rate
 python 000_Sensor_Connection.py --baud 460800
 
-serial port name on different devices
-windows: "COM3"
+Serial port names on different systems:
+Windows: "COM3"
 Ubuntu: "/dev/ttyUSB0"
 """
 import argparse
@@ -42,9 +42,9 @@ def detect_one_port(
     serial_timeout: float = 0.01,
 ) -> bool:
     """
-    打开指定串口并在 probe_seconds 内尝试检测一帧：
-    帧定义：HEADER(2) + payload(num_rows*num_cols*bytes_per_pixel)
-    返回 True 表示检测到合法一帧。
+    Open the specified serial port and attempt to detect one valid frame within `probe_seconds`.
+    Frame definition: HEADER(2) + payload(num_rows * num_cols * bytes_per_pixel)
+    Returns True if a valid frame is detected.
     """
     payload_size = num_rows * num_cols * bytes_per_pixel
     total_size = len(HEADER) + payload_size
@@ -60,44 +60,44 @@ def detect_one_port(
                 if chunk:
                     buf += chunk
 
-                    # 控制缓存大小，防止无限增长
+                    # Control buffer size to prevent unlimited growth
                     if len(buf) > max(4096, 4 * total_size):
                         del buf[: -2048]
 
-                    # 试着找头并解析一帧
+                    # Try to find header and parse one frame
                     while True:
                         start = buf.find(HEADER)
                         if start < 0:
-                            # 只保留可能的头部前缀
+                            # Keep only potential header prefix
                             if len(buf) > len(HEADER) - 1:
                                 del buf[: - (len(HEADER) - 1)]
                             break
 
                         if len(buf) - start < total_size:
-                            # 长度不够，等待更多数据
-                            # 丢弃头之前的无用字节
+                            # Not enough bytes yet, wait for more data
+                            # Discard useless bytes before the header
                             if start > 0:
                                 del buf[:start]
                             break
 
-                        # 提取 payload
+                        # Extract payload
                         frame_start = start + len(HEADER)
                         frame_end = start + total_size
                         payload = bytes(buf[frame_start: frame_start + payload_size])
 
-                        # 尝试按 >u2 解析（与你现有 ForceSensor 保持一致）
+                        # Try parsing as >u2 (same format as your existing ForceSensor)
                         try:
                             arr = np.frombuffer(payload, dtype=">u2").reshape(num_rows, num_cols)
-                            # 解析成功即认为此端口是有效的传感器口
+                            # If parsing succeeds, this port is a valid sensor port
                             return True
                         except Exception:
-                            # 不是合法帧，跳过一个字节后继续匹配下一个潜在头
+                            # Invalid frame, skip one byte and continue looking for the next possible header
                             del buf[: start + 1]
                             continue
 
-                        # 正常不会到这里
+                        # Normally should not reach here
                 else:
-                    # 没数据，小睡一下
+                    # No data, sleep briefly
                     time.sleep(0.001)
 
     except (serial.SerialException, OSError):
@@ -110,9 +110,9 @@ def main():
     parser = argparse.ArgumentParser(description="Scan serial ports and detect ForceSensor.")
     parser.add_argument("--baud", type=int, default=921600, help="Baud rate (default: 921600)")
     parser.add_argument("--rows", type=int, default=20, help="Number of rows (default: 20)")
-    parser.add_argument("--cols", type=int, default=8, help="Number of cols (default: 8)")
+    parser.add_argument("--cols", type=int, default=8, help="Number of columns (default: 8)")
     parser.add_argument("--bpp", type=int, default=2, help="Bytes per pixel (default: 2)")
-    parser.add_argument("--probe", type=float, default=3.0, help="Probe seconds per port (default: 3s)")
+    parser.add_argument("--probe", type=float, default=3.0, help="Probe duration per port in seconds (default: 3s)")
     parser.add_argument("--timeout", type=float, default=0.01, help="Serial read timeout (default: 0.01s)")
     args = parser.parse_args()
 
